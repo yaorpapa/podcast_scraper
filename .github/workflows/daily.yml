@@ -1,0 +1,30 @@
+name: Daily Web Crawler
+
+# 使用排程觸發器，這裡設定每天凌晨 0 點執行（UTC 時間，依你需求調整）
+on:
+  schedule:
+    - cron: '0 0 * * *'
+
+jobs:
+  run-crawler:
+    # 由於需要執行 msedgedriver.exe，故選用 Windows 環境
+    runs-on: windows-latest
+
+    steps:
+      # 1. 下載 Repository 內的程式碼
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      # 2. 設定 Python 環境
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      # 3. 安裝相依套件（請確認 requirements.txt 存在且內容正確）
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # 5. 執行你的爬蟲程式
+      - name: Run Crawler
+        run: python podcast_scraper.py
