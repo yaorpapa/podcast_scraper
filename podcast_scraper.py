@@ -9,7 +9,7 @@ import sqlite3
 from datetime import datetime
 
 # 設定 WebDriver 路徑
-driver_path = r'C:\Users\kkkkkkkk\Documents\Python\applepodcast\msedgedriver.exe'
+driver_path = r'./msedgedriver.exe'
 service = Service(driver_path)
 driver = webdriver.Edge(service=service)
 
