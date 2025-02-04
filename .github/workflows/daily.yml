@@ -3,7 +3,7 @@ name: Daily Web Crawler
 # 使用排程觸發器，這裡設定每天凌晨 0 點執行（UTC 時間，依你需求調整）
 on:
   schedule:
-    - cron: '0 3 * * *'
+    - cron: '0 0 * * *'
 
 jobs:
   run-crawler:
