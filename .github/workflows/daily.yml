@@ -3,7 +3,7 @@ name: Daily Web Crawler
 # 使用排程觸發器，這裡設定每天凌晨 0 點執行（UTC 時間，依你需求調整）
 on:
   schedule:
-    - cron: '0 0 * * *'
+    - cron: '0 3 * * *'
 
 jobs:
   run-crawler:
@@ -29,3 +29,10 @@ jobs:
       # 5. 執行你的爬蟲程式
       - name: Run Crawler
         run: python podcast_scraper.py
+# 6. 保留更新後的 podcasts.db 檔案
+        - name: Upload podcasts.db artifact
+  uses: actions/upload-artifact@v4
+  with:
+    name: podcasts-db
+    path: podcasts.db
+
