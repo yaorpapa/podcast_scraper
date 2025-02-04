@@ -1,3 +1,6 @@
+import sys
+sys.stdout.reconfigure(encoding='utf-8')
+
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.edge.service import Service
@@ -9,7 +12,7 @@ import sqlite3
 from datetime import datetime
 
 # 設定 WebDriver 路徑
-driver_path = r'C:\Users\kkkkkkkk\Documents\Python\applepodcast\msedgedriver.exe'
+driver_path = r'./msedgedriver.exe'
 service = Service(driver_path)
 driver = webdriver.Edge(service=service)
 
