@@ -28,10 +28,3 @@ jobs:
       # 5. 執行你的爬蟲程式
       - name: Run Crawler
         run: python podcast_scraper.py
-# 6. 保留更新後的 podcasts.db 檔案
-       # - name: Upload podcasts.db artifact
- # uses: actions/upload-artifact@v4
- # with:
- #  name: podcasts-db
-  #  path: podcasts.db
-
