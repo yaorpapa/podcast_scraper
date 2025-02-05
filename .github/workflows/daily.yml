@@ -9,22 +9,25 @@ jobs:
     runs-on: windows-latest
     env:
       PYTHONIOENCODING: utf-8  # 強制 Python 使用 UTF-8 編碼
-      
     steps:
-      # 1. 下載 Repository 內的程式碼
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      # 2. 設定 Python 環境
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.x'
 
-      # 3. 安裝相依套件（請確認 requirements.txt 存在且內容正確）
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # 5. 執行你的爬蟲程式
+      - name: Setup msedgedriver
+        run: |
+          Invoke-WebRequest -Uri "https://msedgedriver.azureedge.net/114.0.1823.43/edgedriver_win64.zip" -OutFile "edgedriver_win64.zip"
+          Expand-Archive -Path "edgedriver_win64.zip" -DestinationPath "."
+          if (!(Test-Path "./msedgedriver.exe")) {
+            Write-Error "msedgedriver.exe 未找到，請檢查下載連結及版本號！"
+          }
+
       - name: Run Crawler
         run: python podcast_scraper.py
