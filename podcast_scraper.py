@@ -1,10 +1,17 @@
+import socket
+# 強制所有 getaddrinfo 呼叫只使用 IPv4
+_orig_getaddrinfo = socket.getaddrinfo
+def _force_ipv4_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
+    return _orig_getaddrinfo(host, port, socket.AF_INET, type, proto, flags)
+socket.getaddrinfo = _force_ipv4_getaddrinfo
+
 import os
 import requests
 import xml.etree.ElementTree as ET
 import psycopg2
 from datetime import datetime
 
-# 由環境變數取得 Supabase 資料庫連線字串
+# 從環境變數取得 Supabase 資料庫連線字串
 SUPABASE_DB_URL = os.environ.get('SUPABASE_DB_URL')
 if not SUPABASE_DB_URL:
     raise Exception("請設定環境變數 SUPABASE_DB_URL，並將 Supabase 的連線字串貼上。")
@@ -29,7 +36,6 @@ conn.commit()
 # 定義各類別對應的 genre 參數
 genre_mapping = {
     "熱門": None,
-    "兒童與家庭": "1305"
 }
 
 # Apple RSS feed 的 URL（台灣地區，限制 200 筆資料）
