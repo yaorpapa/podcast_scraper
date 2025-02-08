@@ -7,7 +7,7 @@ from datetime import datetime
 # 由環境變數取得 Supabase 資料庫連線字串
 SUPABASE_DB_URL = os.environ.get('SUPABASE_DB_URL')
 if not SUPABASE_DB_URL:
-    raise Exception("postgresql://postgres:nemgA0-xicpac-zeswak@db.xfnxyruqxvkbtophggyo.supabase.co:5432/postgres")
+    raise Exception("")
 
 # 連線到 Supabase PostgreSQL，需啟用 SSL
 conn = psycopg2.connect(SUPABASE_DB_URL, sslmode='require')
