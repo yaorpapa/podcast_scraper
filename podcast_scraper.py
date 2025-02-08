@@ -1,5 +1,4 @@
 import socket
-# 強制所有 getaddrinfo 呼叫只使用 IPv4
 _orig_getaddrinfo = socket.getaddrinfo
 def _force_ipv4_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
     return _orig_getaddrinfo(host, port, socket.AF_INET, type, proto, flags)
@@ -16,7 +15,7 @@ SUPABASE_DB_URL = os.environ.get('SUPABASE_DB_URL')
 if not SUPABASE_DB_URL:
     raise Exception("請設定環境變數 SUPABASE_DB_URL，並將 Supabase 的連線字串貼上。")
 
-# 連線到 Supabase PostgreSQL，需啟用 SSL
+# 連線到 Supabase PostgreSQL，啟用 SSL
 conn = psycopg2.connect(SUPABASE_DB_URL, sslmode='require')
 cursor = conn.cursor()
 
