@@ -3,8 +3,10 @@ name: Daily Web Crawler
 # 使用排程觸發器，這裡設定每天凌晨 0 點執行（UTC 時間，依你需求調整）
 on:
   schedule:
-    # 每天凌晨 0 點（UTC）執行一次，依需求調整 cron 時間
-    - cron: '0 0 * * *'
+    # 每天 UTC 时间 22:10（对应台北时间次日 6:10）
+    - cron: '10 22 * * *'
+    # 每天 UTC 时间 10:10（对应台北时间 18:10）
+    - cron: '10 10 * * *'
   workflow_dispatch:  # 允許手動觸發
 
 jobs:
