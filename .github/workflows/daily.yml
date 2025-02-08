@@ -4,30 +4,30 @@ name: Daily Web Crawler
 on:
   workflow_dispatch:
   schedule:
+    # 每天凌晨 0 點（UTC）執行一次，依需求調整 cron 時間
     - cron: '0 0 * * *'
-
+  workflow_dispatch:  # 允許手動觸發
 
 jobs:
-  run-crawler:
-    runs-on: windows-latest
-    env:
-      PYTHONIOENCODING: utf-8  # 強制 Python 使用 UTF-8 編碼
-      
+  build:
+    runs-on: ubuntu-latest
+
     steps:
-      # 1. 下載 Repository 內的程式碼
-      - name: Checkout Repository
+      - name: Checkout code
         uses: actions/checkout@v3
 
-      # 2. 設定 Python 環境
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.x'
+          python-version: '3.9'
 
-      # 3. 安裝相依套件（請確認 requirements.txt 存在且內容正確）
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-      # 5. 執行你的爬蟲程式
-      - name: Run Crawler
-        run: python podcast_scraper.py
+      - name: Run podcast fetcher script
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: python podcast_fetcher_supabase.py
+
