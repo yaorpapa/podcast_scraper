@@ -1,267 +1,113 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="X-UA-Compatible" content="ie=edge">
-  <meta name="Description" content="Podcast 搜尋" />
-  <title>Podcast 搜尋</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.6.0/css/bootstrap.min.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
-    }
-    h1 {
-      text-align: center;
-      margin-bottom: 30px;
-    }
-    .search-form, .category-btns {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-    .btn {
-      margin: 5px;
-    }
-    /* 新增用於 div 版式的樣式 */
-    .podcast-table {
-      margin-top: 20px;
-      width: 100%;
-    }
-    .podcast-header {
-      font-weight: bold;
-      background-color: #f8f9fa;
-      padding: 10px;
-    }
-    .podcast-row {
-      display: flex;
-      padding: 10px;
-      border-bottom: 1px solid #dee2e6;
-    }
-    .podcast-cell {
-      flex: 1;
-      padding: 5px;
-    }
-    #error-message {
-      color: red;
-      text-align: center;
-      font-weight: bold;
-      margin-top: 20px;
-    }
-  </style>
-</head>
-<body>
-  <h1>Podcast 搜尋</h1>
-  <div class="container">
-    <div class="row text-center">
-      <div class="search-form col-12">
-        <input type="text" id="searchInput" class="form-control" placeholder="輸入節目名稱" required>
-        <button class="btn btn-primary" onclick="fetchPodcasts()">搜尋</button>
-      </div>
+import socket
+_orig_getaddrinfo = socket.getaddrinfo
+def _force_ipv4_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
+    return _orig_getaddrinfo(host, port, socket.AF_INET, type, proto, flags)
+socket.getaddrinfo = _force_ipv4_getaddrinfo
 
-      <!-- 按鈕來隱藏 "無資料" 列 -->
-      <div class="hide-btn col-3 text-center">
-        <button onclick="hideNoDataRows()">隱藏 "無資料" 的節目</button>
-      </div>
+import os
+import requests
+import xml.etree.ElementTree as ET
+import psycopg2
+from datetime import datetime
 
-      <!-- 動態排序按鈕 -->
-      <div class="sort-btn col-3 text-center">
-        <button onclick="sortTableByCategory()">按類別排序</button>
-      </div>
-    </div>
+# 從環境變數取得 Supabase 資料庫連線字串
+SUPABASE_DB_URL = os.environ.get('SUPABASE_DB_URL')
+if not SUPABASE_DB_URL:
+    raise Exception("請設定環境變數 SUPABASE_DB_URL，並將 Supabase 的連線字串貼上。")
 
-    <!-- 類別按鈕 -->
-    <div class="col-12 text-center category-btns">
-      <h4>選擇類別</h4>
-      <div id="categoryButtons"></div>
-    </div>
+# 連線到 Supabase PostgreSQL，啟用 SSL
+conn = psycopg2.connect(SUPABASE_DB_URL, sslmode='require')
+cursor = conn.cursor()
 
-    <p id="error-message"></p>
-    <!-- 使用 div 取代 table -->
-    <div id="podcastTable" class="podcast-table">
-      <!-- 表頭 -->
-      <div class="podcast-header d-flex">
-        <div class="podcast-cell text-center col-2">類別</div>
-        <div class="podcast-cell text-center col-2">資料日期</div>
-        <div class="podcast-cell text-center col-2">排行榜</div>
-        <div class="podcast-cell text-center col-3">節目名稱</div>
-        <div class="podcast-cell text-center col-3">主持人</div>
-      </div>
-      <!-- 資料列區塊 -->
-      <div class="podcast-body"></div>
-    </div>
-  </div>
+# 建立資料表（若尚未存在）
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS podcasts (
+    id SERIAL PRIMARY KEY,
+    date TEXT,
+    category TEXT,
+    rank TEXT,
+    title TEXT,
+    host TEXT
+)
+''')
+conn.commit()
 
-  <script>
-    const supabaseUrl = 'https://xfnxyruqxvkbtophggyo.supabase.co';
-    const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhmbnh5cnVxeHZrYnRvcGhnZ3lvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzg5ODgxMjMsImV4cCI6MjA1NDU2NDEyM30.BUmM4OTl9kbCBraAhNPSVvHY1pGSfsM-ZILkglbhsds';
-    const supabaseClient = supabase.createClient(supabaseUrl, supabaseAnonKey);
-    let currentCategory = null;
+# 定義各類別對應的 genre 參數
+genre_mapping = {
+    "熱門": None,
+    "社會與文化": "1303",
+    "新聞": "1489",
+    "教育": "1304",
+    "商業": "1321",
+    "健康與瘦身": "1512",
+    "藝術": "1301",
+    "音樂": "1310",
+    "宗教與精神生活": "1314",
+    "運動": "1545",
+    "科學": "1533",
+    "歷史": "1487",
+    "犯罪紀實": "1488",
+    "科技": "1318",
+    "兒童與家庭": "1305",
+    "電視與電影": "1309",
+    "休閒": "1502",
+    "小說": "1483",
+    "政府": "1511"
 
-    document.addEventListener("DOMContentLoaded", function() {
-      const categories = ['熱門', '社會與文化', '新聞', '教育', '商業', '健康與瘦身', '藝術', '音樂', '宗教與精神生活', '運動', '科學', '歷史', '犯罪紀實', '科技', '兒童與家庭', '電視與電影', '休閒', '小說', '政府'];
-      const categoryButtonsContainer = document.getElementById("categoryButtons");
-      
-      if (categoryButtonsContainer) {
-        categories.forEach(category => {
-          const button = document.createElement("button");
-          button.className = "btn btn-light m-2";
-          button.innerText = category;
-          button.onclick = () => fetchCategory(category);
-          categoryButtonsContainer.appendChild(button);
-        });
-      }
-    });
+}
 
-    // 按下搜尋按鈕後
-    async function fetchPodcasts() {
-      const body = document.querySelector("#podcastTable .podcast-body");
-      body.innerHTML = "";
-      currentCategory = null; // 清空當前類別
-      try {
-        const searchTerm = document.getElementById("searchInput").value.trim();
-        let query = supabaseClient
-          .from('podcasts')
-          .select('*')
-          .limit(200);
-        
-        // 如果有輸入搜尋關鍵字
-        if (searchTerm) {
-          query = query.ilike('title', `%${searchTerm}%`);
-        }
+# Apple RSS feed 的 URL（台灣地區，限制 200 筆資料）
+base_url = "https://itunes.apple.com/tw/rss/toppodcasts/limit=200/{}xml"
 
-        // 取得資料
-        const { data, error } = await query;
-        if (error) throw error;
-        if (!data || data.length === 0) {
-          document.getElementById("error-message").textContent = "沒有找到符合條件的 Podcast 資料。";
-          return;
-        }
-        document.getElementById("error-message").textContent = "";
+# 定義 XML 解析時使用的命名空間
+ns = {
+    'atom': 'http://www.w3.org/2005/Atom',
+    'im': 'http://itunes.apple.com/rss'
+}
 
-        // 依日期(降冪)，同日期則依 rank(升冪) 排列
-        data.sort((a, b) => {
-          if (a.date < b.date) return 1;
-          if (a.date > b.date) return -1;
-          return a.rank - b.rank;
-        });
+for category, genre in genre_mapping.items():
+    if genre:
+        rss_url = base_url.format(f"genre={genre}/")
+    else:
+        rss_url = base_url.format("")
+    
+    print(f"開始處理類別：{category}，RSS URL：{rss_url}")
+    try:
+        response = requests.get(rss_url)
+        response.raise_for_status()
+    except Exception as e:
+        print(f"取得 URL {rss_url} 時發生錯誤：{e}")
+        continue
 
-        data.forEach(podcast => {
-          const row = document.createElement("div");
-          row.className = "podcast-row d-flex";
-          row.innerHTML = `
-            <div class="podcast-cell text-center col-2">${podcast.category || '無資料'}</div>
-            <div class="podcast-cell text-center col-2">${podcast.date || '無資料'}</div>
-            <div class="podcast-cell text-center col-2">${podcast.rank || '無資料'}</div>
-            <div class="podcast-cell text-center col-3">${podcast.title || '無資料'}</div>
-            <div class="podcast-cell text-center col-3">${podcast.host || '無資料'}</div>
-          `;
-          body.appendChild(row);
-        });
-      } catch (err) {
-        console.error("讀取 Podcast 錯誤：", err);
-        document.getElementById("error-message").textContent = "讀取 Podcast 時發生錯誤，請檢查控制台。";
-      }
-    }
+    try:
+        root = ET.fromstring(response.content)
+    except Exception as e:
+        print(f"解析 RSS XML 時發生錯誤（{rss_url}）：{e}")
+        continue
 
-    // 點擊類別
-    async function fetchCategory(category) {
-      const body = document.querySelector("#podcastTable .podcast-body");
-      body.innerHTML = "";
-      currentCategory = category;
-      try {
-        // 先取得該類別所有資料
-        const { data, error } = await supabaseClient
-          .from('podcasts')
-          .select('*')
-          .eq('category', category);
+    # 取得所有 <entry> 節點，每個 entry 代表一筆排行榜資料
+    entries = root.findall('atom:entry', ns)
+    print(f"類別 {category} 共找到 {len(entries)} 筆資料")
 
-        if (error) throw error;
-        if (!data || data.length === 0) {
-          document.getElementById("error-message").textContent = `沒有找到 ${category} 類別的 Podcast 資料。`;
-          return;
-        }
-        document.getElementById("error-message").textContent = "";
+    # 取得目前日期與時間
+    current_datetime = datetime.now().strftime("%Y/%m/%d %H:%M")
 
-        // 找出最新日期
-        let maxDate = '';
-        data.forEach(podcast => {
-          if (podcast.date && podcast.date > maxDate) {
-            maxDate = podcast.date;
-          }
-        });
+    # 遍歷所有資料，依序編號作為排行榜名次
+    for index, entry in enumerate(entries, start=1):
+        title_elem = entry.find('im:name', ns)
+        title = title_elem.text.strip() if title_elem is not None else "未知標題"
+        artist_elem = entry.find('im:artist', ns)
+        host = artist_elem.text.strip() if artist_elem is not None else "未知主持人"
+        rank = str(index)
 
-        // 過濾出只包含最新日期的資料
-        const latestData = data.filter(podcast => podcast.date === maxDate);
+        cursor.execute('''
+            INSERT INTO podcasts (date, category, rank, title, host)
+            VALUES (%s, %s, %s, %s, %s)
+        ''', (current_datetime, category, rank, title, host))
+    
+    conn.commit()
+    print(f"類別 {category} 的資料已儲存至 Supabase 資料庫。")
 
-        // 依 rank(升冪) 排列
-        latestData.sort((a, b) => a.rank - b.rank);
-
-        latestData.forEach(podcast => {
-          const row = document.createElement("div");
-          row.className = "podcast-row d-flex";
-          row.innerHTML = `
-            <div class="podcast-cell text-center col-2">${podcast.category || '無資料'}</div>
-            <div class="podcast-cell text-center col-2">${podcast.date || '無資料'}</div>
-            <div class="podcast-cell text-center col-2">${podcast.rank || '無資料'}</div>
-            <div class="podcast-cell text-center col-3">${podcast.title || '無資料'}</div>
-            <div class="podcast-cell text-center col-3">${podcast.host || '無資料'}</div>
-          `;
-          body.appendChild(row);
-        });
-      } catch (err) {
-        console.error(`讀取 ${category} Podcast 錯誤：`, err);
-        document.getElementById("error-message").textContent = `讀取 ${category} Podcast 時發生錯誤，請檢查控制台。`;
-      }
-    }
-  </script>
-
-  <!-- JavaScript 用來隱藏 "無資料" 的行 和 按類別排序 -->
-  <script>
-    function hideNoDataRows() {
-      const rows = document.querySelectorAll('#podcastTable .podcast-row');
-      rows.forEach(row => {
-        const cells = row.querySelectorAll('.podcast-cell');
-        let hideRow = false;
-        cells.forEach(cell => {
-          if (cell.textContent === '無資料') {
-            hideRow = true;
-          }
-        });
-        if (hideRow) {
-          row.style.display = 'none';
-        }
-      });
-    }
-
-    // 按類別和最新排名排序表格資料
-    function sortTableByCategory() {
-      const container = document.getElementById('podcastTable');
-      const rows = Array.from(container.querySelectorAll('.podcast-body .podcast-row'));
-
-      rows.sort((a, b) => {
-        const cellsA = a.querySelectorAll('.podcast-cell');
-        const cellsB = b.querySelectorAll('.podcast-cell');
-
-        // 類別: 第 0 欄
-        const categoryA = cellsA[0].innerText.toLowerCase();
-        const categoryB = cellsB[0].innerText.toLowerCase();
-
-        if (categoryA < categoryB) return -1;
-        if (categoryA > categoryB) return 1;
-
-        // 排名: 第 2 欄
-        const rankingA = parseInt(cellsA[2].innerText) || 0;
-        const rankingB = parseInt(cellsB[2].innerText) || 0;
-
-        return rankingA - rankingB;
-      });
-
-      const body = container.querySelector('.podcast-body');
-      rows.forEach(row => body.appendChild(row));
-    }
-  </script>
-</body>
-</html>
+cursor.close()
+conn.close()
+print("所有資料已處理完成，資料庫連線已關閉。")
