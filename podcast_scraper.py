@@ -32,6 +32,10 @@ CREATE TABLE IF NOT EXISTS podcasts (
 ''')
 conn.commit()
 
+# 更新 podcasts_id_seq 序列的值，以避免重複主鍵問題
+cursor.execute("SELECT setval('podcasts_id_seq', COALESCE((SELECT MAX(id) FROM podcasts) + 1, 1), false);")
+conn.commit()
+
 # 定義各類別對應的 genre 參數
 genre_mapping = {
     "熱門": None,
@@ -55,7 +59,6 @@ genre_mapping = {
     "休閒": "1502",
     "小說": "1483",
     "政府": "1511"
-
 }
 
 # Apple RSS feed 的 URL（台灣地區，限制 200 筆資料）
