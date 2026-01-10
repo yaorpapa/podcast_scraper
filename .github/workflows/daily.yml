@@ -27,8 +27,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run podcast_scraper
+      - name: Run scrapers
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-        run: python podcast_scraper.py
-
+        run: |
+          python podcast_scraper.py
+          python podcast_scraper_monthly_102.py
