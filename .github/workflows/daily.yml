@@ -32,4 +32,3 @@ jobs:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
           python podcast_scraper.py
-          python podcast_scraper_monthly_102.py
