@@ -32,44 +32,13 @@ CREATE TABLE IF NOT EXISTS podcasts (
 ''')
 conn.commit()
 
-# 更新 podcasts_id_seq 序列的值，以避免重複主鍵問題
-cursor.execute("SELECT setval('podcasts_id_seq', COALESCE((SELECT MAX(id) FROM podcasts) + 1, 1), false);")
-conn.commit()
+# 從環境變數讀取 genre mapping（敏感資料，透過 GitHub Secrets 注入）
+import json
+GENRE_MAPPING_JSON = os.environ.get('GENRE_MAPPING')
+if not GENRE_MAPPING_JSON:
+    raise Exception("請設定環境變數 GENRE_MAPPING，格式為 JSON 字串。")
 
-# 定義各類別對應的 genre 參數
-genre_mapping = {
-    "熱門": None,
- "社會與文化": "1324",
-  "教育": "1304",
-  "商業": "1321",
-  "新聞": "1489",
-  "兒童與家庭": "1305",
-  "兒童教育": "1519",
-  "兒童故事": "1520",
-  "喜劇": "1303",
-  "健康與瘦身": "1512",
-  "語言學習": "1498",
-  "自我成長": "1500",
-  "運動": "1545",
-  "休閒": "1502",
-  "藝術": "1301",
-  "人際關係": "1544",
-  "個人日誌": "1302",
-  "心理健康": "1517",
-  "宗教與精神生活": "1314",
-  "犯罪紀實": "1488",
-  "電視與電影": "1309",
-  "科技": "1318",
-  "歷史": "1487",
-  "音樂": "1310",
-  "小說": "1483",
-  "科學": "1533",
-  "書籍": "1482",
-  "子女教養": "1521",
-  "紀實": "1543",
-  "創業": "1493",
-  "政府": "1511"
-}
+genre_mapping = json.loads(GENRE_MAPPING_JSON)
 
 # Apple RSS feed 的 URL（台灣地區，限制 200 筆資料）
 base_url = "https://itunes.apple.com/tw/rss/toppodcasts/limit=200/{}xml"
