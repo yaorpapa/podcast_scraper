@@ -8,7 +8,10 @@ import os
 import requests
 import xml.etree.ElementTree as ET
 import psycopg2
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+
+# 設定台北時區 (UTC+8)
+taipei_tz = timezone(timedelta(hours=8))
 
 # 從環境變數取得 Supabase 資料庫連線字串
 SUPABASE_DB_URL = os.environ.get('SUPABASE_DB_URL')
@@ -73,8 +76,8 @@ for category, genre in genre_mapping.items():
     entries = root.findall('atom:entry', ns)
     print(f"類別 {category} 共找到 {len(entries)} 筆資料")
 
-    # 取得目前日期與時間
-    current_datetime = datetime.now().strftime("%Y/%m/%d %H:%M")
+    # 取得目前日期與時間（台北時間）
+    current_datetime = datetime.now(taipei_tz).strftime("%Y/%m/%d %H:%M")
 
     # 遍歷所有資料，依序編號作為排行榜名次
     for index, entry in enumerate(entries, start=1):
